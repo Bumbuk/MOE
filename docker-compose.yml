@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: myshop_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shop_user
+      POSTGRES_PASSWORD: strong_password
+      POSTGRES_DB: shop_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
