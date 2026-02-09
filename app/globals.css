@@ -1,8 +1,22 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+
+/* Define a pastel brand palette inspired by provided brand guidelines.
+   These variables are used throughout the site for backgrounds, text and accents. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base background is a warm off‑white reminiscent of the brand’s paper texture. */
+  --background: 243 240 233;
+  /* Primary foreground is a dark neutral for contrast on light backgrounds. */
+  --foreground: #2D2C2A;
+  /* Brand accent colours (used via inline classes or CSS variables). */
+  --brand-yellow: #F9B44D; /* golden yellow */
+  --brand-blue:   #4B7488; /* calm blue */
+  --brand-orange: #FF6634; /* vibrant orange */
+  --brand-pink:   #EC99A6; /* soft pink */
+  --brand-purple: #BFAADC; /* gentle purple (derived from provided palette) */
 }
 
 @theme inline {
@@ -12,15 +26,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Dark mode is disabled. To enable a dark palette in the future,
+   declare variables here and toggle via prefers-color-scheme. */
+/* Отключаем тёмную тему: даже в dark-mode устройство будет использовать светлую палитру. */
+
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
