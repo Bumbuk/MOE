@@ -106,7 +106,7 @@ export default function LeadForm(props: {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="min-h-[90px] rounded-xl border border-[#F9B44D] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] outline-none focus:border-[#BFAADC] placeholder-[#AAA19C]"
-            placeholder="Например: нужна доставка / цвет / уточqweнения"
+            placeholder="Например: нужна доставка / цвет / уточенения"
           />
         </label>
       </div>
