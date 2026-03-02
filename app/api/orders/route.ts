@@ -4,6 +4,7 @@ import { prisma } from "../../../lib/db";
 import { calcDeliveryPriceRub, FREE_DELIVERY_FROM_RUB } from "../../../lib/delivery";
 import { DeliveryMethod } from "@prisma/client";
 import { sendTelegram } from "../../../lib/telegram";
+import { consumeRateLimit } from "../../../lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,14 @@ function deliveryLabel(m: DeliveryMethod) {
 }
 
 export async function POST(req: Request) {
+  const rate = consumeRateLimit(req, "orders", 15, 60_000);
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: "TOO_MANY_REQUESTS" },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } }
+    );
+  }
+
   const raw = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(raw);
   if (!parsed.success) {
@@ -124,11 +133,11 @@ export async function POST(req: Request) {
   const total = subtotal + deliveryPrice;
 
   // 3) создаём заказ + позиции
-  // Подготовим номер заказа вида DDMMYYN, где N – порядковый номер за сегодняшний день.
+  // Подготовим номер заказа вида DDMMYYYYN, где N – порядковый номер за сегодняшний день.
   const now = new Date();
   const day = String(now.getDate()).padStart(2, "0");
   const month = String(now.getMonth() + 1).padStart(2, "0");
-  const year = String(now.getFullYear()).slice(-2);
+  const year = String(now.getFullYear());
   const datePrefix = `${day}${month}${year}`;
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -169,7 +178,7 @@ export async function POST(req: Request) {
     .join("\n");
 
   const msg =
-    `<b>Новый заказ</b> #${escHtml(order.id)}\n\n` +
+    `<b>Новый заказ</b> #${escHtml(order.orderNumber)}\n\n` +
     `<b>Контакты</b>\n${escHtml(body.fullName)}\n${escHtml(body.phone)}\n${escHtml(body.city)}\n\n` +
     `<b>Доставка</b>\n${escHtml(deliveryLabel(method))}\n` +
     `${method === "PICKUP" ? "" : `${escHtml((body.deliveryAddress ?? "").trim())}\n`}\n` +

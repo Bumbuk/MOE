@@ -3,20 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
-
-/* Define a pastel brand palette inspired by provided brand guidelines.
-   These variables are used throughout the site for backgrounds, text and accents. */
 :root {
-  /* Base background is a warm off‑white reminiscent of the brand’s paper texture. */
-  --background: 243 240 233;
-  /* Primary foreground is a dark neutral for contrast on light backgrounds. */
-  --foreground: #2D2C2A;
-  /* Brand accent colours (used via inline classes or CSS variables). */
-  --brand-yellow: #F9B44D; /* golden yellow */
-  --brand-blue:   #4B7488; /* calm blue */
-  --brand-orange: #FF6634; /* vibrant orange */
-  --brand-pink:   #EC99A6; /* soft pink */
-  --brand-purple: #BFAADC; /* gentle purple (derived from provided palette) */
+  --background: #faf7f3;
+  --foreground: #111111;
 }
 
 @theme inline {
@@ -26,12 +15,43 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Dark mode is disabled. To enable a dark palette in the future,
-   declare variables here and toggle via prefers-color-scheme. */
-/* Отключаем тёмную тему: даже в dark-mode устройство будет использовать светлую палитру. */
-
-
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+.cart-fly-dot {
+  position: fixed;
+  left: var(--start-x);
+  top: var(--start-y);
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #2e4c9a;
+  pointer-events: none;
+  z-index: 80;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 0.95;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.6s ease;
+  animation: cart-dot-pulse 0.8s ease-in-out infinite;
+}
+
+.cart-fly-dot--go {
+  left: var(--end-x);
+  top: var(--end-y);
+  transform: translate(-50%, -50%) scale(0.45);
+  opacity: 0.2;
+}
+
+@keyframes cart-dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 76, 154, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(46, 76, 154, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(46, 76, 154, 0);
+  }
 }

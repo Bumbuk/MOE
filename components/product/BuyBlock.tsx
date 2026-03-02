@@ -15,7 +15,6 @@ export default function BuyBlock({ sizes }: { sizes: string[] }) {
         variant="primary"
         disabled={!size}
         onClick={() => {
-          // Пока без реальной логики корзины — позже подключим стор/контекст
           alert(size ? `Добавлено в корзину. Размер: ${size}` : "Выберите размер");
         }}
         className={
@@ -29,7 +28,6 @@ export default function BuyBlock({ sizes }: { sizes: string[] }) {
       </Button>
 
       <div className="text-xs text-[#4B7488]">
-        Подсказка: позже сюда подключим реальную корзину и наличие по размерам.
       </div>
     </div>
   );

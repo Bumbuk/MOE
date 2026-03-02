@@ -9,11 +9,10 @@ type ProductRow = {
   category?: string;
   description?: string;
   status?: "ACTIVE" | "HIDDEN";
-
-  popular?: string; // 1..4 или пусто
-  preview?: string; // 1..3 или пусто
-  composition?: string; // текст или пусто
-  certification?: string; // текст/ссылка или пусто
+  popular?: string;
+  preview?: string;
+  composition?: string;
+  certification?: string;
 };
 
 type ColorRow = {
@@ -21,6 +20,7 @@ type ColorRow = {
   colorSlug: string;
   colorName: string;
   sortOrder?: string;
+  hex?: string;
 };
 
 type VariantRow = {
@@ -28,14 +28,13 @@ type VariantRow = {
   colorSlug: string;
   size: string;
   sku: string;
-  price: string; // рубли, целое
-  stock?: string; // целое, если пусто -> 0
+  price: string;
+  stock?: string;
   status?: "ACTIVE" | "HIDDEN";
 };
 
 function readCsv<T extends Record<string, unknown>>(filePath: string): T[] {
   const content = fs.readFileSync(filePath, "utf-8");
-
   const firstLine = content.split(/\r?\n/)[0] ?? "";
   const delimiter = firstLine.includes(";") ? ";" : ",";
 
@@ -86,6 +85,13 @@ function intInRangeOrNull(v: string | undefined, field: string, min: number, max
   return n;
 }
 
+function normalizeHex(v?: string): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  assert(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s), `Некорректный HEX: ${v}`);
+  return s.toUpperCase();
+}
+
 function sizeSortFromSize(size: string) {
   const n = Number(norm(size));
   return Number.isFinite(n) ? Math.trunc(n) : 999999;
@@ -133,7 +139,6 @@ async function main() {
   const colors = readCsv<ColorRow>(colorsPath);
   const variants = readCsv<VariantRow>(variantsPath);
 
-  // защита от дублей popular/preview
   checkUniqueSlots(products);
 
   const colorsByProduct = new Map<string, ColorRow[]>();
@@ -164,7 +169,6 @@ async function main() {
       const category = norm(p.category) || null;
       const description = norm(p.description) || "";
       const status = ((p.status ?? "ACTIVE") === "HIDDEN" ? "HIDDEN" : "ACTIVE") as "ACTIVE" | "HIDDEN";
-
       const popular = intInRangeOrNull(p.popular, "popular", 1, 4);
       const preview = intInRangeOrNull(p.preview, "preview", 1, 3);
       const composition = norm(p.composition) || null;
@@ -172,37 +176,16 @@ async function main() {
 
       const product = await tx.product.upsert({
         where: { slug },
-        create: {
-          slug,
-          title,
-          category,
-          description,
-          status,
-          popular,
-          preview,
-          composition,
-          certification,
-        },
-        update: {
-          title,
-          category,
-          description,
-          status,
-          popular,
-          preview,
-          composition,
-          certification,
-        },
+        create: { slug, title, category, description, status, popular, preview, composition, certification },
+        update: { title, category, description, status, popular, preview, composition, certification },
         select: { id: true },
       });
 
-      // чистим цвета (варианты каскадом)
       await tx.productColor.deleteMany({ where: { productId: product.id } });
 
       const colorRowsRaw = (colorsByProduct.get(slug) ?? []).slice();
       colorRowsRaw.sort((a, b) => toIntOrZero(a.sortOrder) - toIntOrZero(b.sortOrder));
 
-      // защита от дублей colorSlug внутри одного продукта
       const seenColorSlug = new Set<string>();
       const colorRows: ColorRow[] = [];
       for (const c of colorRowsRaw) {
@@ -216,6 +199,7 @@ async function main() {
         const c = colorRows[idx]!;
         const colorSlug = norm(c.colorSlug) || "default";
         const colorName = norm(c.colorName) || "Без цвета";
+        const colorHex = normalizeHex(c.hex);
 
         assert(colorSlug && /^[a-z0-9-]+$/.test(colorSlug), `Некорректный colorSlug у ${slug}: ${c.colorSlug}`);
         assert(colorName.length <= 80, `Слишком длинное colorName у ${slug}/${colorSlug}`);
@@ -225,15 +209,15 @@ async function main() {
             productId: product.id,
             name: colorName,
             slug: colorSlug,
+            hex: colorHex,
             sortOrder: toIntOrZero(c.sortOrder) || idx,
           },
           select: { id: true },
         });
 
         const vRows = (variantsByKey.get(key(slug, colorSlug)) ?? []).slice();
-
-        // защита от дублей размеров внутри цвета (уникальность colorId+size)
         const seenSize = new Set<string>();
+
         for (const v of vRows) {
           const size = norm(v.size);
           const sku = norm(v.sku);
@@ -264,12 +248,12 @@ async function main() {
     }
   });
 
-  console.log(`✅ Импорт завершён. Products: ${products.length}, Colors: ${colors.length}, Variants: ${variants.length}`);
+  console.log(`Импорт завершён. Products: ${products.length}, Colors: ${colors.length}, Variants: ${variants.length}`);
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Ошибка импорта:", e);
+    console.error("Ошибка импорта:", e);
     process.exit(1);
   })
   .finally(async () => {

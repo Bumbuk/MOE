@@ -1,14 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import ProductGallery from "./ProductGallery";
 import AddToCart from "../cart/AddToCart";
-
-/*
- * Клиентский компонент страницы товара. Управляет выбранным цветом,
- * отображает галерею изображений и блок добавления в корзину. За расчёт
- * цены и обработку вариантов отвечает AddToCart.
- */
+import ProductGallery from "./ProductGallery";
 
 type Variant = {
   id: string;
@@ -38,78 +32,60 @@ type Props = {
   };
 };
 
+function hasAvailableVariant(variants: Variant[]) {
+  return variants.some((v) => v.status === "ACTIVE" && (v.stock == null || v.stock > 0));
+}
+
 export default function ProductClient({ product }: Props) {
-  // Отфильтровываем цвета, в которых есть хотя бы один активный вариант.
   const visibleColors = useMemo(() => {
-    return (product.colors ?? [])
+    const normalized = (product.colors ?? [])
       .map((c) => ({
         ...c,
         variants: (c.variants ?? []).filter((v) => v.status === "ACTIVE"),
       }))
-      .filter((c) => (c.variants ?? []).length > 0);
+      .filter((c) => c.variants.length > 0);
+
+    const availableOnly = normalized.filter((c) => hasAvailableVariant(c.variants));
+    return availableOnly.length > 0 ? availableOnly : normalized;
   }, [product.colors]);
 
-  // slug выбранного цвета. По умолчанию берём первый доступный цвет.
-  const [colorSlug, setColorSlug] = useState<string>(visibleColors[0]?.slug ?? "");
-
-  // Активный цвет исходя из slug.
-  const activeColor = useMemo(() => {
-    return visibleColors.find((c) => c.slug === colorSlug) ?? visibleColors[0];
-  }, [visibleColors, colorSlug]);
-
-  // Галерея принимает только массив URL. Отфильтровываем пустые значения.
-  const galleryImages = useMemo(() => {
-    return (activeColor?.images ?? [])
-      .map((i) => i.url)
-      .filter((u): u is string => typeof u === "string" && u.length > 0);
-  }, [activeColor]);
+  // По умолчанию выбираем первый доступный цвет.
+  const [colorSlug, setColorSlug] = useState(visibleColors[0]?.slug ?? "");
+  const activeColor = useMemo(
+    () => visibleColors.find((c) => c.slug === colorSlug) ?? visibleColors[0],
+    [visibleColors, colorSlug]
+  );
+  const images = useMemo(
+    () => (activeColor?.images ?? []).map((item) => item.url).filter((src): src is string => Boolean(src)),
+    [activeColor]
+  );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* Левая колонка: галерея и описание */}
+    <main className="mx-auto max-w-7xl px-4 py-10 md:px-6">
+      <section className="grid gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-start">
         <div className="space-y-6">
-          <ProductGallery images={galleryImages} title={product.title} />
+          <ProductGallery images={images} title={product.title} />
 
-          {/*
-            Composition / Certification — отдельные пункты сразу под фото.
-            Показываем блок только если есть хотя бы одно поле.
-          */}
-          {(product.composition || product.certification) ? (
-            <div className="rounded-2xl border border-[#F9B44D] bg-[var(--background)] p-4">
-              <div className="text-sm font-medium text-[#4B7488] mb-2">Детали</div>
-              <ul className="space-y-2 text-sm leading-6 text-[#2D2C2A]">
-                {product.composition ? (
-                  <li>
-                    <span className="text-[#4B7488]">Composition:</span>{" "}
-                    <span className="whitespace-pre-wrap">{product.composition}</span>
-                  </li>
-                ) : null}
-                {product.certification ? (
-                  <li>
-                    <span className="text-[#4B7488]">Certification:</span>{" "}
-                    <span className="whitespace-pre-wrap">{product.certification}</span>
-                  </li>
-                ) : null}
-              </ul>
+          {(product.composition || product.certification) && (
+            <div className="rounded-2xl border border-black/10 bg-white p-6">
+              {product.composition && (
+                <p className="text-sm text-black/65">
+                  <span className="font-semibold text-[#2E4C9A]">Состав:</span> {product.composition}
+                </p>
+              )}
+              {product.certification && (
+                <p className="mt-3 text-sm text-black/65">
+                  <span className="font-semibold text-[#2E4C9A]">Сертификация:</span> {product.certification}
+                </p>
+              )}
             </div>
-          ) : null}
-
-          {product.description ? (
-            <div className="rounded-2xl border border-[#F9B44D] bg-[var(--background)] p-4">
-              <div className="text-sm font-medium text-[#4B7488] mb-2">Описание</div>
-              <div className="whitespace-pre-wrap text-sm leading-6 text-[#2D2C2A]">
-                {product.description}
-              </div>
-            </div>
-          ) : null}
+          )}
         </div>
 
-        {/* Правая колонка: информация о товаре и блок покупки */}
-        <div className="space-y-5">
+        <aside className="space-y-6">
           <div>
-            <div className="text-sm text-[#4B7488]">{product.category ?? ""}</div>
-            <h1 className="mt-1 text-3xl font-semibold text-[#2D2C2A]">{product.title}</h1>
+            <div className="text-xs text-black/45">{product.category ?? ""}</div>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#2E4C9A]">{product.title}</h1>
           </div>
 
           <AddToCart
@@ -119,8 +95,14 @@ export default function ProductClient({ product }: Props) {
             colorSlug={colorSlug}
             onColorChange={setColorSlug}
           />
-        </div>
-      </div>
-    </div>
+
+          {product.description ? (
+            <div className="rounded-2xl border border-black/10 bg-white p-6">
+              <div className="text-sm leading-6 text-black/65">{product.description}</div>
+            </div>
+          ) : null}
+        </aside>
+      </section>
+    </main>
   );
 }

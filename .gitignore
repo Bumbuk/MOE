@@ -65,3 +65,9 @@ public/tmp/
 # Misc
 # ===============================
 *.local
+*.zip
+*.rar
+*.7z
+*.xlsm
+*.db
+*.db-journal

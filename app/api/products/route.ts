@@ -2,10 +2,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/db";
 import { ProductsQuerySchema } from "../../../lib/validators";
 import { Prisma } from "@prisma/client";
+import { consumeRateLimit } from "../../../lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  const rate = consumeRateLimit(req, "products", 120, 60_000);
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: "TOO_MANY_REQUESTS" },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSec) } }
+    );
+  }
+
   const url = new URL(req.url);
   const parsed = ProductsQuerySchema.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success) return NextResponse.json({ error: "INVALID_QUERY" }, { status: 400 });
@@ -22,6 +31,7 @@ export async function GET(req: Request) {
 
   const minPrice = q.minPrice != null ? Number(q.minPrice) : null;
   const maxPrice = q.maxPrice != null ? Number(q.maxPrice) : null;
+  const color = q.color;
 
   const where: Prisma.ProductWhereInput = { status: "ACTIVE" };
 
@@ -39,9 +49,10 @@ export async function GET(req: Request) {
         ? { equals: sizeOne }
         : null;
 
-  if (sizeFilter || minPrice != null || maxPrice != null) {
+  if (sizeFilter || minPrice != null || maxPrice != null || color) {
     where.colors = {
       some: {
+        ...(color ? { slug: color } : {}),
         variants: {
           some: {
             status: "ACTIVE",

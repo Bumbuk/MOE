@@ -1,25 +1,20 @@
 "use client";
 
 import Image from "next/image";
-// Link is intentionally not imported because we navigate via useRouter.
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useCartStore } from "../../lib/cart-store";
-// Button не используем для оформления заказа, так как нужны кастомные цвета.
 import { formatRub } from "../../lib/constants";
-import { FREE_DELIVERY_FROM_RUB, DeliveryMethod } from "../../lib/delivery";
+import { DeliveryMethod, FREE_DELIVERY_FROM_RUB } from "../../lib/delivery";
 
 type CheckoutForm = {
   fullName: string;
   phone: string;
-  /** Город покупателя. Обязательное поле. */
   city: string;
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string;
   comment: string;
 };
-
-type OrderItemPayload = { variantId: string; qty: number };
 
 type PostOrderPayload = {
   fullName: string;
@@ -28,26 +23,40 @@ type PostOrderPayload = {
   comment?: string | null;
   deliveryMethod: DeliveryMethod;
   deliveryAddress?: string | null;
-  items: OrderItemPayload[];
+  items: Array<{ variantId: string; qty: number }>;
 };
 
 type OrderResponse = { orderId: string } | { error: string; variantId?: string };
 
 async function postOrder(payload: PostOrderPayload): Promise<OrderResponse> {
-  const res = await fetch("/api/orders", {
+  const response = await fetch("/api/orders", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return (await res.json()) as OrderResponse;
+  return (await response.json()) as OrderResponse;
+}
+
+function formatPhoneInput(value: string): string {
+  let digits = value.replace(/\D/g, "");
+  if (digits.startsWith("8")) digits = digits.slice(1);
+  if (digits.startsWith("7")) digits = digits.slice(1);
+
+  let result = "+7";
+  if (digits.length > 0) result += " ";
+  result += digits.slice(0, 3);
+  if (digits.length > 3) result += ` ${digits.slice(3, 6)}`;
+  if (digits.length > 6) result += `-${digits.slice(6, 8)}`;
+  if (digits.length > 8) result += `-${digits.slice(8, 10)}`;
+  return result.trim();
 }
 
 export default function CartClient() {
+  const router = useRouter();
   const items = useCartStore((s) => s.items);
   const setQty = useCartStore((s) => s.setQty);
   const removeItem = useCartStore((s) => s.removeItem);
   const clear = useCartStore((s) => s.clear);
-  const router = useRouter();
 
   const [form, setForm] = useState<CheckoutForm>({
     fullName: "",
@@ -61,106 +70,32 @@ export default function CartClient() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  // Track whether the user has interacted with each form field. We only show
-  // validation errors after the corresponding field has been touched (onBlur).
-  const [fullNameTouched, setFullNameTouched] = useState(false);
-  const [phoneTouched, setPhoneTouched] = useState(false);
-  const [cityTouched, setCityTouched] = useState(false);
-  const [addressTouched, setAddressTouched] = useState(false);
-
-  const subtotal = useMemo(() => items.reduce((s, it) => s + it.priceRub * it.qty, 0), [items]);
-
+  const subtotal = useMemo(() => items.reduce((acc, item) => acc + item.priceRub * item.qty, 0), [items]);
   const needAddress = form.deliveryMethod !== "PICKUP";
-  // Валидируем: ФИО состоит из трёх слов, телефон соответствует шаблону,
-  // город не пустой, адрес указан если требуется. Для UX ошибки показываются
-  // только после того, как пользователь покинет поле (touched).
-  const fullNameParts = form.fullName.trim().split(/\s+/).filter(Boolean);
-  const fullNameValid = fullNameParts.length === 3;
-  const phonePattern = /^\+7\s?\d{3}\s?\d{3}-\d{2}-\d{2}$/;
-  const phoneValid = phonePattern.test(form.phone.trim());
+  const fullNameValid = form.fullName.trim().split(/\s+/).filter(Boolean).length === 3;
+  const phoneValid = /^\+7\s?\d{3}\s?\d{3}-\d{2}-\d{2}$/.test(form.phone.trim());
   const cityValid = form.city.trim().length > 0;
   const addressValid = form.deliveryAddress.trim().length > 0;
 
-  const fullNameError = fullNameTouched && !fullNameValid ? "Введите фамилию, имя и отчество" : null;
-  const phoneError = phoneTouched && !phoneValid ? "Номер должен быть в формате +7 900 123-45-67" : null;
-  const cityError = cityTouched && !cityValid ? "Укажите город" : null;
-  const addressError = addressTouched && needAddress && !addressValid ? "Укажите адрес" : null;
-
   const canCheckout =
-    items.length > 0 &&
-    fullNameValid &&
-    phoneValid &&
-    cityValid &&
-    (!needAddress || addressValid);
-
-  /**
-   * Форматирует введённый номер в шаблон +7 900 123-45-67.
-   * Удаляет все символы кроме цифр, затем группирует их.
-   */
-  function formatPhoneInput(value: string): string {
-    // Оставляем только цифры
-    let digits = value.replace(/\D/g, "");
-    // Если номер начинается с 8, отбрасываем эту цифру, так как используем +7
-    if (digits.startsWith("8")) {
-      digits = digits.slice(1);
-    }
-    // Если номер начинается с 7, отбрасываем эту цифру для дальнейшего форматирования
-    if (digits.startsWith("7")) {
-      digits = digits.slice(1);
-    }
-    let result = "+7";
-    if (digits.length > 0) result += " ";
-    // Код региона
-    if (digits.length >= 3) {
-      result += digits.slice(0, 3);
-      digits = digits.slice(3);
-    } else {
-      result += digits;
-      digits = "";
-    }
-    if (digits.length > 0) {
-      result += " ";
-      if (digits.length >= 3) {
-        result += digits.slice(0, 3);
-        digits = digits.slice(3);
-      } else {
-        result += digits;
-        digits = "";
-      }
-    }
-    if (digits.length > 0) {
-      result += "-";
-      if (digits.length >= 2) {
-        result += digits.slice(0, 2);
-        digits = digits.slice(2);
-      } else {
-        result += digits;
-        digits = "";
-      }
-    }
-    if (digits.length > 0) {
-      result += "-";
-      result += digits.slice(0, 2);
-    }
-    return result;
-  }
+    items.length > 0 && fullNameValid && phoneValid && cityValid && (!needAddress || addressValid);
 
   async function checkout() {
     if (!canCheckout || pending) return;
-
     setPending(true);
     setError(null);
     setSuccessId(null);
 
-    const payload = {
+    const payload: PostOrderPayload = {
       fullName: form.fullName.trim(),
       phone: form.phone.trim(),
       city: form.city.trim(),
       comment: form.comment.trim() || null,
       deliveryMethod: form.deliveryMethod,
-      deliveryAddress: form.deliveryMethod === "PICKUP" ? null : form.deliveryAddress.trim(),
-      items: items.map((it) => ({ variantId: it.variantId, qty: it.qty })),
+      deliveryAddress: needAddress ? form.deliveryAddress.trim() : null,
+      items: items.map((item) => ({ variantId: item.variantId, qty: item.qty })),
     };
 
     try {
@@ -168,10 +103,10 @@ export default function CartClient() {
       if ("orderId" in data) {
         setSuccessId(data.orderId);
         clear();
-        return;
+      } else {
+        setError(data.error || "ORDER_FAILED");
       }
-      setError(data.error || "ORDER_FAILED");
-    } catch (e) {
+    } catch {
       setError("ORDER_FAILED");
     } finally {
       setPending(false);
@@ -180,242 +115,208 @@ export default function CartClient() {
 
   if (successId) {
     return (
-      <div className="mx-auto max-w-3xl p-4">
-        <h1 className="text-2xl font-semibold">Заказ оформлен</h1>
-        {/* Выводим маску заказа DDMMYYN */}
-        <p className="mt-2">Номер заказа: <span className="font-mono">{successId}</span></p>
+      <section className="mx-auto max-w-3xl rounded-2xl border border-black/10 bg-white p-8">
+        <h1 className="text-2xl font-semibold tracking-tight text-[#2E4C9A]">Заказ оформлен</h1>
+        <p className="mt-3 text-sm text-black/65">
+          Номер заказа: <span className="font-mono text-black">{successId}</span>
+        </p>
         <button
           type="button"
-          onClick={() => router.push("/")}
-          className="mt-4 inline-block rounded-xl border border-[#F9B44D] bg-[#FF6634] px-4 py-2 text-sm font-medium text-white hover:bg-[#F9844D]"
+          onClick={() => router.push("/catalog")}
+          className="mt-6 h-11 rounded-md bg-[#2E4C9A] px-4 text-sm font-medium text-white hover:bg-[#243f84]"
         >
-          В каталог
+          Перейти в каталог
         </button>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-4">
-      <h1 className="text-2xl font-semibold">Корзина</h1>
-      {/* Кнопка очистки корзины – отображается только если есть товары */}
-      {items.length > 0 ? (
-        <div className="mt-2 flex justify-end">
-          <button
-            type="button"
-            onClick={clear}
-            className="text-sm text-[#FF6634] hover:text-[#EC99A6]"
-          >
-            Очистить корзину
-          </button>
-        </div>
-      ) : null}
+    <section>
+      <button
+        type="button"
+        onClick={() => router.push("/catalog")}
+        className="inline-flex items-center gap-2 text-sm text-black/45 hover:text-black/70"
+      >
+        <span className="text-xl">←</span> Назад в каталог
+      </button>
 
-      {items.length === 0 ? (
-        <div className="mt-4 text-[#4B7488] flex items-center gap-3">
-          <span>Корзина пуста.</span>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="inline-flex items-center rounded-xl border border-[#F9B44D] bg-[#FF6634] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#F9844D]"
-          >
-            В каталог
-          </button>
-        </div>
-      ) : (
-        <div className="mt-4 grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-3">
-            {items.map((it) => (
-              <div
-                key={it.variantId}
-                className="flex gap-3 rounded-2xl border border-[#F9B44D] bg-[var(--background)] p-3"
-              >
-                <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-gray-50">
-                  {it.imageUrl ? (
-                    <Image src={it.imageUrl} alt={it.title} fill className="object-cover" />
-                  ) : null}
-                </div>
+      <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[#2E4C9A]">Оформление заказа</h1>
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-medium leading-snug line-clamp-2">{it.title}</div>
-                      <div className="text-sm text-[#4B7488] mt-1">Цвет: {it.color} • Размер: {it.size}</div>
-                      <div className="text-sm mt-1">{formatRub(it.priceRub)} / шт</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="text-sm text-[#FF6634] hover:text-[#EC99A6]"
-                      onClick={() => removeItem(it.variantId)}
-                    >
-                      Удалить
-                    </button>
-                  </div>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl border border-[#F9B44D] bg-[var(--background)] text-[#FF6634] hover:bg-[#FDE9D4]"
-                      onClick={() => setQty(it.variantId, Math.max(1, it.qty - 1))}
-                    >
-                      −
-                    </button>
-                    <div className="min-w-8 text-center">{it.qty}</div>
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-xl border border-[#F9B44D] bg-[var(--background)] text-[#FF6634] hover:bg-[#FDE9D4]"
-                      onClick={() => {
-                        // не увеличиваем больше, чем остаток на складе
-                        if (it.stock != null && it.qty >= it.stock) return;
-                        setQty(it.variantId, it.qty + 1);
-                      }}
-                    >
-                      +
-                    </button>
-                    <div className="ml-auto font-medium">{formatRub(it.priceRub * it.qty)}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-2xl border border-[#F9B44D] bg-[var(--background)] p-4 h-fit">
-            <div className="text-sm text-[#4B7488]">
-              Доставка бесплатно от <b>{FREE_DELIVERY_FROM_RUB} ₽</b>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-[#4B7488]">Товары</span>
-              <span className="font-medium">{formatRub(subtotal)}</span>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <label className="block">
-            <div className="text-sm text-[#4B7488]">ФИО</div>
-            <input
-              className={
-                "mt-1 w-full rounded-xl border bg-[var(--background)] px-3 py-2 placeholder-[#AAA19C] " +
-                (fullNameError ? "border-red-500" : "border-[#F9B44D]")
-              }
-              placeholder="Иванов Иван Иванович"
-              value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              onBlur={() => setFullNameTouched(true)}
-            />
-            {fullNameError ? (
-              <div className="mt-1 text-xs text-red-500">{fullNameError}</div>
-            ) : null}
-              </label>
-
-          <label className="block">
-            <div className="text-sm text-[#4B7488]">Телефон</div>
-            <input
-              className={
-                "mt-1 w-full rounded-xl border bg-[var(--background)] px-3 py-2 placeholder-[#AAA19C] " +
-                (phoneError ? "border-red-500" : "border-[#F9B44D]")
-              }
-              placeholder="+7 900 123-45-67"
-              value={form.phone}
-              onChange={(e) => {
-                const formatted = formatPhoneInput(e.target.value);
-                setForm({ ...form, phone: formatted });
-              }}
-              onBlur={() => setPhoneTouched(true)}
-            />
-            {phoneError ? (
-              <div className="mt-1 text-xs text-red-500">{phoneError}</div>
-            ) : null}
-          </label>
-
-          <label className="block">
-            <div className="text-sm text-[#4B7488]">Город</div>
-            <input
-              className={
-                "mt-1 w-full rounded-xl border bg-[var(--background)] px-3 py-2 placeholder-[#AAA19C] " +
-                (cityError ? "border-red-500" : "border-[#F9B44D]")
-              }
-              placeholder="Ваш город"
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-              onBlur={() => setCityTouched(true)}
-            />
-            {cityError ? (
-              <div className="mt-1 text-xs text-red-500">{cityError}</div>
-            ) : null}
-          </label>
-
-              <label className="block">
-            <div className="text-sm text-[#4B7488]">Способ доставки</div>
-            <select
-              className="mt-1 w-full rounded-xl border border-[#F9B44D] bg-[var(--background)] px-3 py-2 text-[#4B7488]"
-              value={form.deliveryMethod}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  deliveryMethod: e.target.value as DeliveryMethod,
-                  deliveryAddress: "",
-                })
-              }
-            >
-              <option value="CDEK">СДЭК</option>
-              <option value="YANDEX">Яндекс Доставка</option>
-              <option value="PICKUP">Самовывоз (Казань)</option>
-            </select>
-              </label>
-
-              {needAddress ? (
-                <label className="block">
-                  <div className="text-sm text-[#4B7488]">
-                    {form.deliveryMethod === "CDEK"
-                      ? "Адрес пункта СДЭК"
-                      : "Адрес Яндекс Доставка"}
-                  </div>
-                  <input
-                    className={
-                      "mt-1 w-full rounded-xl border bg-[var(--background)] px-3 py-2 placeholder-[#AAA19C] " +
-                      (addressError ? "border-red-500" : "border-[#F9B44D]")
-                    }
-                    placeholder="Улица, дом, квартира"
-                    value={form.deliveryAddress}
-                    onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })}
-                    onBlur={() => setAddressTouched(true)}
-                  />
-                  {addressError ? (
-                    <div className="mt-1 text-xs text-red-500">{addressError}</div>
-                  ) : null}
-                </label>
-              ) : null}
-
-              <label className="block">
-                <div className="text-sm text-[#4B7488]">Комментарий (необязательно)</div>
-                <textarea
-                  className="mt-1 w-full rounded-xl border border-[#F9B44D] bg-[var(--background)] px-3 py-2 placeholder-[#AAA19C]"
-                  rows={3}
-                  placeholder="Ваши пожелания по заказу"
-                  value={form.comment}
-                  onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                />
-              </label>
-
-              {error ? <div className="text-sm text-red-600">Ошибка: {error}</div> : null}
-
-              <button
-                type="button"
-                disabled={!canCheckout || pending}
-                onClick={checkout}
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-start">
+        <div className="rounded-2xl border border-black/10 bg-white p-6">
+          <div className="text-sm font-semibold text-[#2E4C9A]">Контактные данные</div>
+          <div className="mt-4 grid gap-4">
+            <label className="block">
+              <input
                 className={
-                  "w-full rounded-xl px-4 py-3 font-medium transition " +
-                  (canCheckout && !pending
-                    ? "bg-[#F9B44D] text-[#2D2C2A] hover:bg-[#FDE07F]"
-                    : "bg-[#EADDCB] text-[#AAA19C] cursor-not-allowed")
+                  "h-12 w-full rounded-md border px-4 text-sm outline-none focus:border-black/30 " +
+                  (touched.fullName && !fullNameValid ? "border-red-500" : "border-black/10")
+                }
+                placeholder="Фамилия Имя Отчество"
+                value={form.fullName}
+                onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                onBlur={() => setTouched((prev) => ({ ...prev, fullName: true }))}
+              />
+            </label>
+
+            <label className="block">
+              <input
+                className={
+                  "h-12 w-full rounded-md border px-4 text-sm outline-none focus:border-black/30 " +
+                  (touched.phone && !phoneValid ? "border-red-500" : "border-black/10")
+                }
+                placeholder="+7 900 123-45-67"
+                value={form.phone}
+                onChange={(e) => setForm((prev) => ({ ...prev, phone: formatPhoneInput(e.target.value) }))}
+                onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+              />
+            </label>
+
+            <label className="block">
+              <input
+                className={
+                  "h-12 w-full rounded-md border px-4 text-sm outline-none focus:border-black/30 " +
+                  (touched.city && !cityValid ? "border-red-500" : "border-black/10")
+                }
+                placeholder="Город"
+                value={form.city}
+                onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
+                onBlur={() => setTouched((prev) => ({ ...prev, city: true }))}
+              />
+            </label>
+
+            <label className="block">
+              <select
+                className="h-12 w-full rounded-md border border-black/10 px-4 text-sm outline-none focus:border-black/30"
+                value={form.deliveryMethod}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    deliveryMethod: e.target.value as DeliveryMethod,
+                    deliveryAddress: "",
+                  }))
                 }
               >
-                {pending ? "Оформляем..." : "Оформить заказ"}
-              </button>
-            </div>
+                <option value="CDEK">СДЭК</option>
+                <option value="YANDEX">Яндекс Доставка</option>
+                <option value="PICKUP">Самовывоз (Казань)</option>
+              </select>
+            </label>
+
+            {needAddress && (
+              <label className="block">
+                <input
+                  className={
+                    "h-12 w-full rounded-md border px-4 text-sm outline-none focus:border-black/30 " +
+                    (touched.address && !addressValid ? "border-red-500" : "border-black/10")
+                  }
+                  placeholder="Адрес доставки"
+                  value={form.deliveryAddress}
+                  onChange={(e) => setForm((prev) => ({ ...prev, deliveryAddress: e.target.value }))}
+                  onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
+                />
+              </label>
+            )}
+
+            <label className="block">
+              <textarea
+                className="min-h-24 w-full rounded-md border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                placeholder="Комментарий к заказу"
+                value={form.comment}
+                onChange={(e) => setForm((prev) => ({ ...prev, comment: e.target.value }))}
+              />
+            </label>
+
+            {error && <div className="text-sm text-red-600">Ошибка: {error}</div>}
+
+            <button
+              type="button"
+              disabled={!canCheckout || pending}
+              onClick={checkout}
+              className={
+                "h-12 rounded-md text-sm font-semibold tracking-wide " +
+                (canCheckout && !pending ? "bg-black/15 hover:bg-black/20" : "bg-black/10 text-black/35")
+              }
+            >
+              {pending ? "Оформляем..." : "Оформить заказ"}
+            </button>
           </div>
         </div>
-      )}
-    </div>
+
+        <aside className="rounded-2xl border border-black/10 bg-white p-8">
+          <h2 className="text-lg font-semibold tracking-tight text-[#2E4C9A]">Ваш заказ</h2>
+          <div className="mt-3 text-xs text-black/45">{items.length} поз.</div>
+
+          {items.length === 0 ? (
+            <div className="mt-6 text-sm text-black/55">Корзина пуста.</div>
+          ) : (
+            <div className="mt-6 space-y-6">
+              {items.map((item) => (
+                <div key={item.variantId} className="grid grid-cols-[96px_1fr_auto] gap-4">
+                  <div className="relative overflow-hidden rounded-xl bg-black/5">
+                    {item.imageUrl && (
+                      <Image src={item.imageUrl} alt={item.title} width={96} height={96} className="h-24 w-24 object-cover" />
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-black/75">{item.title}</div>
+                    <div className="mt-1 text-xs text-black/45">
+                      {item.color} / {item.size}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQty(item.variantId, Math.max(1, item.qty - 1))}
+                        className="h-8 w-8 rounded-full border border-black/15 text-sm hover:bg-black/5"
+                      >
+                        -
+                      </button>
+                      <span className="min-w-5 text-center text-sm">{item.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.stock != null && item.qty >= item.stock) return;
+                          setQty(item.variantId, item.qty + 1);
+                        }}
+                        className="h-8 w-8 rounded-full border border-black/15 text-sm hover:bg-black/5"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.variantId)}
+                        className="ml-2 text-xs text-black/45 underline hover:text-black/70"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-black/65">{formatRub(item.priceRub * item.qty)}</div>
+                </div>
+              ))}
+
+              <button type="button" onClick={clear} className="text-sm text-black/45 underline hover:text-black/70">
+                Очистить корзину
+              </button>
+            </div>
+          )}
+
+          <div className="mt-8 border-t border-black/10 pt-6 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-black/60">Товары</span>
+              <span className="text-black/75">{formatRub(subtotal)}</span>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-black/60">Доставка</span>
+              <span className="text-xs text-black/35">Рассчитывается в заказе</span>
+            </div>
+            <div className="mt-3 text-xs text-black/45">Бесплатно от {FREE_DELIVERY_FROM_RUB} ₽</div>
+          </div>
+        </aside>
+      </div>
+    </section>
   );
 }

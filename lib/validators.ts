@@ -16,6 +16,7 @@ export const ProductsQuerySchema = z.object({
 
   q: optStr(80),
   category: optStr(60),
+  color: optStr(60),
 
   // sizes=86,92,98
   sizes: optStr(200).transform((v) => {

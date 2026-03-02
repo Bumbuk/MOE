@@ -64,6 +64,8 @@ model ProductColor {
 
   name      String
   slug      String
+  /// HEX-код цвета (например #1F2A44) для отображения свотчей на карточках.
+  hex       String?
   sortOrder Int    @default(0)
 
   images   Image[]
@@ -127,7 +129,7 @@ model Order {
   subtotal Int
   total    Int
 
-  /// Маска заказа вида DDMMYYN, где N — порядковый номер внутри дня.
+  /// Маска заказа вида DDMMYYYYN, где N — порядковый номер внутри дня.
   orderNumber String @unique
 
   /// Город покупателя (опционально). Используется для доставки.

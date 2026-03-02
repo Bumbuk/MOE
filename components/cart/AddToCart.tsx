@@ -1,13 +1,7 @@
 "use client";
 
-/*
- * Компонент добавления в корзину для страницы товара. Здесь находится логика
- * выбора цвета, размера, количества и отображения цены. После добавления
- * товара выводится небольшое уведомление, чтобы пользователь увидел
- * результат действия. Цвет кнопок и фона соответствует фирменной палитре.
- */
-
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCartStore } from "../../lib/cart-store";
 import { formatRub } from "../../lib/constants";
 
@@ -31,233 +25,234 @@ type Props = {
   productSlug: string;
   productTitle: string;
   colors: Color[];
-  /**
-   * slug текущего выбранного цвета. Передаётся сверху, чтобы синхронизировать
-   * выбор цвета с галереей.
-   */
   colorSlug: string;
-  /**
-   * Функция для изменения цвета. Вызывается при выборе нового цвета.
-   */
   onColorChange: (slug: string) => void;
 };
 
+type FlyState = {
+  show: boolean;
+  left: number;
+  top: number;
+  targetLeft: number;
+  targetTop: number;
+  animate: boolean;
+};
+
+function isAvailable(variant: Variant) {
+  return variant.stock == null || variant.stock > 0;
+}
+
 export default function AddToCart({ productSlug, productTitle, colors, colorSlug, onColorChange }: Props) {
-  // Получаем доступ к корзине: список товаров и функцию добавления.
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
+  const addButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  // Видим только цвета с хотя бы одним активным вариантом.
-  const visibleColors = useMemo(() => {
-    return (colors ?? [])
-      .map((c) => ({
-        ...c,
-        variants: (c.variants ?? []).filter((v) => v.status === "ACTIVE"),
-      }))
-      .filter((c) => (c.variants ?? []).length > 0);
-  }, [colors]);
+  const [fly, setFly] = useState<FlyState>({
+    show: false,
+    left: 0,
+    top: 0,
+    targetLeft: 0,
+    targetTop: 0,
+    animate: false,
+  });
+  const [addedFeedback, setAddedFeedback] = useState(false);
+  const [variantId, setVariantId] = useState("");
+  const [qty, setQty] = useState(1);
 
-  // Текущий цвет (по slug). Если slug отсутствует или неправильный, берём первый доступный.
-  const color = useMemo(() => {
-    return visibleColors.find((c) => c.slug === colorSlug) ?? visibleColors[0];
-  }, [visibleColors, colorSlug]);
+  const visibleColors = useMemo(
+    () =>
+      (colors ?? [])
+        .map((color) => ({
+          ...color,
+          variants: (color.variants ?? []).filter((variant) => variant.status === "ACTIVE"),
+        }))
+        .filter((color) => color.variants.length > 0),
+    [colors]
+  );
 
-  // Сортируем варианты внутри цвета по размеру (если размер числовой — по числу, иначе по строке).
-  const sizes = useMemo(() => {
-    return ((color?.variants ?? []).slice()).sort((a, b) => {
-      const an = Number(a.size);
-      const bn = Number(b.size);
-      const aNum = Number.isFinite(an);
-      const bNum = Number.isFinite(bn);
-      if (aNum && bNum) return an - bn;
-      return a.size.localeCompare(b.size, "ru");
-    });
-  }, [color]);
+  const color = useMemo(
+    () => visibleColors.find((item) => item.slug === colorSlug) ?? visibleColors[0],
+    [visibleColors, colorSlug]
+  );
 
-  // Выбранный вариант (по id) и количество.
-  const [variantId, setVariantId] = useState<string>(sizes[0]?.id ?? "");
-  const [qty, setQty] = useState<number>(1);
+  const sizes = useMemo(
+    () =>
+      [...(color?.variants ?? [])].sort((a, b) => {
+        const an = Number(a.size);
+        const bn = Number(b.size);
+        if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+        return a.size.localeCompare(b.size, "ru");
+      }),
+    [color]
+  );
 
-  // Найдём активный вариант по id. Если ничего не выбрано — берём первый.
-  const activeVariant = useMemo(() => {
-    return sizes.find((v) => v.id === variantId) ?? sizes[0];
-  }, [sizes, variantId]);
+  const firstAvailableVariant = useMemo(() => sizes.find(isAvailable) ?? sizes[0], [sizes]);
+  const selectedVariantId = sizes.some((item) => item.id === variantId) ? variantId : (firstAvailableVariant?.id ?? "");
+  const activeVariant = useMemo(
+    () => sizes.find((item) => item.id === selectedVariantId) ?? firstAvailableVariant,
+    [sizes, selectedVariantId, firstAvailableVariant]
+  );
 
-  const priceRub = activeVariant?.price ?? 0;
+  useEffect(() => {
+    if (!addedFeedback) return;
+    const timer = setTimeout(() => setAddedFeedback(false), 1200);
+    return () => clearTimeout(timer);
+  }, [addedFeedback]);
+
   const stock = activeVariant?.stock ?? null;
-  // Текущее количество этого варианта уже в корзине.
+  const priceRub = activeVariant?.price ?? 0;
   const currentInCart = useMemo(() => {
-    const item = cartItems.find((it) => it.variantId === activeVariant?.id);
+    const item = cartItems.find((entry) => entry.variantId === activeVariant?.id);
     return item?.qty ?? 0;
   }, [cartItems, activeVariant?.id]);
-  // Сколько ещё можно добавить: остаток минус уже лежащее в корзине. Если stock == null, то бесконечность.
   const availableStock = stock == null ? Number.MAX_SAFE_INTEGER : Math.max(0, stock - currentInCart);
-  // Разрешаем добавление, если выбран цвет и вариант, и остаток > 0, и qty > 0.
   const canAdd = Boolean(color && activeVariant && availableStock > 0 && qty > 0);
 
-  // Состояние для показа уведомления "добавлено".
-  const [showToast, setShowToast] = useState(false);
-  useEffect(() => {
-    if (!showToast) return;
-    const t = setTimeout(() => setShowToast(false), 2000);
-    return () => clearTimeout(t);
-  }, [showToast]);
+  function animateToCart() {
+    const sourceRect = addButtonRef.current?.getBoundingClientRect();
+    const cartRect = document.getElementById("site-cart-button")?.getBoundingClientRect();
+    if (!sourceRect || !cartRect) return;
 
-  function handleColorSelect(slug: string) {
-    onColorChange(slug);
-    // При смене цвета сбрасываем выбранный размер и количество
-    const newColor = visibleColors.find((c) => c.slug === slug);
-    const firstVariant = newColor?.variants?.[0];
-    setVariantId(firstVariant?.id ?? "");
-    setQty(1);
+    const startLeft = sourceRect.left + sourceRect.width / 2;
+    const startTop = sourceRect.top + sourceRect.height / 2;
+    const targetLeft = cartRect.left + cartRect.width / 2;
+    const targetTop = cartRect.top + cartRect.height / 2;
+
+    setFly({ show: true, left: startLeft, top: startTop, targetLeft, targetTop, animate: false });
+    requestAnimationFrame(() => requestAnimationFrame(() => setFly((prev) => ({ ...prev, animate: true }))));
+    window.setTimeout(() => setFly((prev) => ({ ...prev, show: false, animate: false })), 650);
   }
 
-  function onAdd() {
+  function handleAdd() {
     if (!canAdd || !color || !activeVariant) return;
-    // Перекрываем количество: нельзя добавить больше доступного.
-    const qtyToAdd = Math.min(qty, availableStock);
+    const amount = Math.min(qty, availableStock);
+
     addItem({
       variantId: activeVariant.id,
       title: productTitle,
       slug: productSlug,
       color: color.name,
       size: activeVariant.size,
-      priceRub: priceRub,
+      priceRub,
       imageUrl: color.images?.[0]?.url ?? undefined,
-      stock: stock,
-      qty: qtyToAdd,
+      stock,
+      qty: amount,
     });
-    // Показываем уведомление и сбрасываем количество в 1 для следующего добавления.
-    setShowToast(true);
+
     setQty(1);
+    setAddedFeedback(true);
+    animateToCart();
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[#F9B44D] bg-[var(--background)] p-4">
-      {/* Цвета: мини-превью с названием. Горизонтальный скролл если много цветов. */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-[#4B7488]">Цвет</div>
-          <div className="text-sm text-[#4B7488]">{color?.name ?? ""}</div>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {visibleColors.map((c) => {
-            const thumb = c.images?.[0]?.url ?? "";
-            const active = c.slug === (color?.slug ?? "");
+    <div className="rounded-2xl border border-black/10 bg-white p-6">
+      {fly.show && (
+        <span
+          className={"cart-fly-dot" + (fly.animate ? " cart-fly-dot--go" : "")}
+          style={{
+            ["--start-x" as string]: `${fly.left}px`,
+            ["--start-y" as string]: `${fly.top}px`,
+            ["--end-x" as string]: `${fly.targetLeft}px`,
+            ["--end-y" as string]: `${fly.targetTop}px`,
+          }}
+        />
+      )}
+
+      <div className="text-sm font-semibold tracking-wide text-[#2E4C9A]">{productTitle}</div>
+      <div className="mt-3 text-sm font-semibold text-[#2E4C9A]">{formatRub(priceRub)}</div>
+      <div className="mt-2 text-xs text-black/40">Цена за единицу</div>
+
+      <div className="mt-6">
+        <div className="text-xs text-black/35">Цвет</div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {visibleColors.map((item) => {
+            const active = item.slug === color?.slug;
+            const image = item.images[0]?.url ?? null;
             return (
               <button
-                key={c.id}
+                key={item.id}
                 type="button"
-                onClick={() => handleColorSelect(c.slug)}
+                onClick={() => {
+                  onColorChange(item.slug);
+                  setQty(1);
+                }}
                 className={
-                  "w-24 flex-shrink-0 rounded-xl border p-2 text-left transition " +
-                  (active
-                    ? "border-[#F9B44D] bg-[#F9B44D]/20"
-                    : "border-[#F9B44D] bg-[var(--background)] hover:border-[#EC99A6]")
+                  "relative h-14 w-14 overflow-hidden rounded-md border " +
+                  (active ? "border-[#2E4C9A]/60" : "border-black/10 hover:border-black/25")
                 }
+                title={item.name}
               >
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-[var(--background)]">
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt={c.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-[#4B7488]">
-                      Нет фото
-                    </div>
-                  )}
-                </div>
-                <div className="mt-2 truncate text-xs text-[#4B7488]">{c.name}</div>
+                {image ? (
+                  <Image src={image} alt={item.name} fill className="object-cover" sizes="64px" />
+                ) : (
+                  <span className="text-[10px] text-black/40">нет фото</span>
+                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Размеры: кнопки со значениями. Неактивные варианты серые. */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-[#4B7488]">Размер</div>
-        <div className="flex flex-wrap gap-2">
-          {sizes.map((v) => {
-            const outOfStock = (v.stock ?? 0) <= 0;
-            const active = v.id === (activeVariant?.id ?? "");
+      <div className="mt-6">
+        <div className="text-xs text-black/35">Размер</div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {sizes.map((item) => {
+            const outOfStock = !isAvailable(item);
+            const active = item.id === selectedVariantId;
             return (
               <button
-                key={v.id}
+                key={item.id}
                 type="button"
                 disabled={outOfStock}
-                onClick={() => setVariantId(v.id)}
+                onClick={() => setVariantId(item.id)}
                 className={
-                  "rounded-full border px-3 py-1 text-sm transition " +
+                  "h-11 min-w-[46px] border px-3 text-xs " +
                   (active
-                    ? "border-[#F9B44D] bg-[#F9B44D]/20 text-[#FF6634]"
+                    ? "border-[#2E4C9A]/60 bg-[#2E4C9A]/5"
                     : outOfStock
-                    ? "border-[#EADDCB] bg-[#F5E5D4] text-[#AAA19C] cursor-not-allowed"
-                    : "border-[#F9B44D] bg-[var(--background)] text-[#4B7488] hover:border-[#EC99A6]")
+                    ? "border-black/10 text-black/30"
+                    : "border-black/15 hover:bg-black/5")
                 }
               >
-                {v.size}
-                {outOfStock ? " (нет)" : ""}
+                {item.size}
               </button>
             );
           })}
         </div>
-        {typeof stock === "number" ? (
-          <div className="text-xs text-[#4B7488]">В наличии: {availableStock}</div>
-        ) : null}
       </div>
 
-      {/* Цена, количество и итог */}
-      <div className="rounded-2xl border border-[#F9B44D] bg-[var(--background)] p-4 space-y-3">
-        <div className="flex items-end justify-between">
-          <div className="text-sm text-[#4B7488]">Цена</div>
-          <div className="text-xl font-semibold text-[#FF6634]">{formatRub(priceRub)}</div>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-[#4B7488]">Количество</div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setQty((x) => Math.max(1, x - 1))}
-              className="h-9 w-9 rounded-full border border-[#F9B44D] bg-[var(--background)] text-[#FF6634] hover:bg-[#FDE9D4]"
-            >
-              −
-            </button>
-            <div className="w-10 text-center text-[#2D2C2A]">{qty}</div>
-            <button
-              type="button"
-              onClick={() =>
-                setQty((x) => {
-                  // Прибавляем количество, но не превышаем доступный остаток
-                  const maxQty = availableStock;
-                  return Math.min(maxQty, x + 1);
-                })
-              }
-              className="h-9 w-9 rounded-full border border-[#F9B44D] bg-[var(--background)] text-[#FF6634] hover:bg-[#FDE9D4]"
-            >
-              +
-            </button>
-          </div>
-        </div>
+      <div className="mt-6 flex items-center gap-2">
         <button
           type="button"
-          onClick={onAdd}
-          disabled={!canAdd}
-          className={
-            "w-full rounded-xl px-4 py-3 font-medium transition " +
-            (canAdd
-              ? "bg-[#FF6634] text-white hover:bg-[#EC99A6]"
-              : "bg-[#EADDCB] text-[#AAA19C] cursor-not-allowed")
-          }
+          onClick={() => setQty((value) => Math.max(1, value - 1))}
+          className="h-10 w-10 rounded-full border border-black/15 hover:bg-black/5"
         >
-          {canAdd ? "Добавить в корзину" : "Нет в наличии"}
+          -
         </button>
-        {/* Итог: выводим цену за 1 единицу, как просил пользователь */}
-        <div className="text-xs text-[#4B7488]">Итого: {formatRub(priceRub)}</div>
-        {/* Уведомление об успешном добавлении */}
-        {showToast ? (
-          <div className="mt-2 text-sm text-[#F9B44D] animate-pulse">Товар добавлен в корзину</div>
-        ) : null}
+        <div className="w-10 text-center text-sm">{qty}</div>
+        <button
+          type="button"
+          onClick={() => setQty((value) => Math.min(availableStock, value + 1))}
+          className="h-10 w-10 rounded-full border border-black/15 hover:bg-black/5"
+        >
+          +
+        </button>
       </div>
+
+      {typeof stock === "number" && <div className="mt-3 text-xs text-black/45">В наличии: {availableStock}</div>}
+
+      <button
+        ref={addButtonRef}
+        type="button"
+        onClick={handleAdd}
+        disabled={!canAdd}
+        className={
+          "mt-6 h-12 w-full rounded-md text-xs font-semibold tracking-wide " +
+          (canAdd ? "bg-black/15 hover:bg-black/20" : "bg-black/10 text-black/35")
+        }
+      >
+        {addedFeedback ? "Товар добавлен в корзину" : "Добавить в корзину"}
+      </button>
     </div>
   );
 }
