@@ -1,5 +1,5 @@
-import { CartEmptyState } from "@/components/cart/cart-empty-state";
+import { CartPageContent } from "@/components/cart/cart-page-content";
 
 export default function CartPage() {
-  return <CartEmptyState />;
+  return <CartPageContent />;
 }

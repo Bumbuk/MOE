@@ -1,3 +1,4 @@
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { formatPrice } from "@/lib/format";
 import type { Product } from "@/types/product";
 
@@ -10,6 +11,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   const variants = firstColor?.variants ?? [];
   const currentPrice = variants[0]?.price ?? 0;
   const oldPrice = variants[0]?.oldPrice;
+  const currentVariant = variants[0];
+  const currentImage = firstColor?.images[0]?.path ?? product.images[0]?.path ?? "";
 
   return (
     <section className="grid gap-10 lg:grid-cols-[1fr_0.9fr]">
@@ -48,6 +51,18 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             ))}
           </div>
         </div>
+        {currentVariant ? (
+          <AddToCartButton
+            productId={product.id}
+            slug={product.slug}
+            title={product.title}
+            colorName={firstColor?.name ?? "Base"}
+            variantId={currentVariant.id}
+            size={currentVariant.size}
+            imagePath={currentImage}
+            price={currentVariant.price}
+          />
+        ) : null}
       </div>
     </section>
   );
