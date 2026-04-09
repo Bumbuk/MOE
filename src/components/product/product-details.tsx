@@ -26,13 +26,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         {oldPrice ? <p className="mt-2 text-sm text-stone-500 line-through">{formatPrice(oldPrice)}</p> : null}
         <div className="mt-8 space-y-4 text-sm text-stone-700">
           <p>
-            <span className="font-medium text-stone-950">Коротко:</span> {product.shortDescription}
+            <span className="font-medium text-stone-950">Описание:</span> {product.shortDescription}
           </p>
           <p>
             <span className="font-medium text-stone-950">Состав:</span> {product.composition}
           </p>
           <p>
-            <span className="font-medium text-stone-950">Сертификация:</span> {product.certification}
+            <span className="font-medium text-stone-950">Особенности:</span> {product.certification}
           </p>
           <p>
             <span className="font-medium text-stone-950">Цвет:</span> {firstColor?.name ?? "Не указан"}

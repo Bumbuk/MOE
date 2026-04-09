@@ -13,8 +13,8 @@ export function FeaturedProducts({ products }: FeaturedProductsProps) {
       <Container>
         <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Выборка</p>
-            <h2 className="mt-3 text-3xl font-semibold text-stone-950">Популярные товары</h2>
+            <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Подборка</p>
+            <h2 className="mt-3 text-3xl font-semibold text-stone-950">Выбор покупателей</h2>
           </div>
           <Link href="/catalog" className="text-sm font-medium text-stone-700 hover:text-stone-950">
             Смотреть весь каталог

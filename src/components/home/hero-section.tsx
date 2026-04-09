@@ -8,11 +8,11 @@ export function HeroSection() {
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-stone-600">MOE Store</p>
           <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-tight text-stone-950 md:text-6xl">
-            Спокойный магазин одежды с чистой архитектурой и понятным каталогом.
+            Одежда для спокойного гардероба с чистыми силуэтами и мягкими фактурами.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-700">
-            Стартовая версия проекта уже собрана на Next.js App Router и готова к
-            дальнейшему расширению через Prisma, Zustand и формы.
+            Выбирайте вещи на каждый день: продуманные формы, приятные материалы
+            и спокойная палитра, которую легко встроить в повседневный образ.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
@@ -30,11 +30,11 @@ export function HeroSection() {
           </div>
         </div>
         <div className="rounded-[2rem] border border-white/60 bg-white/60 p-6 shadow-sm backdrop-blur">
-          <p className="text-sm text-stone-500">Что уже есть</p>
+          <p className="text-sm text-stone-500">В центре внимания</p>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-stone-700">
-            <li>Главная, каталог, карточка товара, о нас и корзина.</li>
-            <li>Выделенные `components`, `lib`, `store`, `types`, `prisma`.</li>
-            <li>Подготовленная Prisma-схема под разрешённые сущности.</li>
+            <li>Лаконичные формы и вещи, которые легко сочетать между собой.</li>
+            <li>Коллекция для размеренного ритма города и повседневных образов.</li>
+            <li>Выбранные модели с понятной посадкой и спокойным характером.</li>
           </ul>
         </div>
       </Container>
