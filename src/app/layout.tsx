@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { SiteHeader } from "@/components/layout/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +15,13 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body className="min-h-screen bg-[#f7f1e8] text-stone-950 antialiased">
+        <div className="flex min-h-screen flex-col">
+          <SiteHeader />
+          <div className="flex-1">{children}</div>
+          <SiteFooter />
+        </div>
+      </body>
     </html>
   );
 }
