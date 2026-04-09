@@ -22,7 +22,8 @@ export function CartPageContent() {
             <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Корзина</p>
             <h1 className="mt-4 text-4xl font-semibold text-stone-950">Пока пусто</h1>
             <p className="mt-4 text-base leading-7 text-stone-700">
-              Добавьте товар из карточки, и Zustand store сохранит его локально в браузере.
+              Добавьте понравившиеся вещи из каталога, чтобы собрать свою подборку и
+              вернуться к ней в удобный момент.
             </p>
             <Link
               href="/catalog"
@@ -42,7 +43,7 @@ export function CartPageContent() {
         <div className="space-y-4">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Корзина</p>
-            <h1 className="mt-3 text-4xl font-semibold text-stone-950">Ваши товары</h1>
+            <h1 className="mt-3 text-4xl font-semibold text-stone-950">Ваш выбор</h1>
           </div>
           {items.map((item) => (
             <article
@@ -83,6 +84,9 @@ export function CartPageContent() {
         <aside className="h-fit rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
           <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Итого</p>
           <p className="mt-4 text-3xl font-semibold text-stone-950">{formatPrice(total)}</p>
+          <p className="mt-3 text-sm leading-6 text-stone-600">
+            Оставьте контактные данные, и мы свяжемся с вами, чтобы уточнить детали заказа.
+          </p>
           <button
             type="button"
             onClick={clearCart}
