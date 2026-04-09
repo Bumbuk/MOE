@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CheckoutForm } from "@/components/cart/checkout-form";
 import { formatPrice } from "@/lib/format";
 import { useCartStore } from "@/store/cart-store";
 import { Container } from "@/components/ui/container";
@@ -89,6 +90,7 @@ export function CartPageContent() {
           >
             Очистить корзину
           </button>
+          <CheckoutForm />
         </aside>
       </Container>
     </section>
