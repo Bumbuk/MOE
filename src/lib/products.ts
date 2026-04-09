@@ -1,206 +1,186 @@
-import type { Product, ProductPreview } from "@/types/product";
+import type { Prisma } from "@prisma/client";
+import { db } from "@/lib/db";
+import type {
+  Product,
+  ProductColor,
+  ProductImage,
+  ProductPreview,
+  ProductVariant,
+} from "@/types/product";
 
-const products: Product[] = [
-  {
-    id: "product-bomber",
-    slug: "bomber",
-    title: "Бомбер Banana Mood",
-    description:
-      "Лёгкий бомбер с объёмной посадкой и мягкой подкладкой для городского гардероба.",
-    shortDescription: "Лёгкий бомбер с акцентным цветом и мягкой фактурой.",
-    status: "ACTIVE",
-    composition: "65% хлопок, 35% полиэстер",
-    certification: "Сертифицировано по стандарту OEKO-TEX",
-    popularRank: 1,
-    previewRank: 1,
-    category: {
-      id: "category-outerwear",
-      slug: "outerwear",
-      name: "Верхняя одежда",
-      description: "Базовые и акцентные модели на каждый день.",
+const productSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  description: true,
+  shortDescription: true,
+  status: true,
+  composition: true,
+  certification: true,
+  popularRank: true,
+  previewRank: true,
+  category: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
     },
-    colors: [
-      {
-        id: "color-banana",
-        slug: "banana",
-        name: "Banana",
-        sortOrder: 1,
-        variants: [
-          {
-            id: "variant-bomber-s",
-            size: "S",
-            sku: "BOMBER-BANANA-S",
-            price: 12990,
-            oldPrice: 14990,
-            stock: 4,
-            status: "ACTIVE",
-          },
-          {
-            id: "variant-bomber-m",
-            size: "M",
-            sku: "BOMBER-BANANA-M",
-            price: 12990,
-            oldPrice: 14990,
-            stock: 2,
-            status: "ACTIVE",
-          },
-        ],
-        images: [
-          {
-            id: "image-bomber-banana-1",
-            path: "/images/products/bomber/banana/1.webp",
-            alt: "Бомбер Banana Mood спереди",
-            sortOrder: 1,
-            isMain: true,
-            productColorId: "color-banana",
-          },
-        ],
-      },
-    ],
-    images: [
-      {
-        id: "image-bomber-main",
-        path: "/images/products/bomber/banana/1.webp",
-        alt: "Бомбер Banana Mood",
-        sortOrder: 1,
-        isMain: true,
-      },
-    ],
   },
-  {
-    id: "product-knit-set",
-    slug: "knit-set",
-    title: "Трикотажный комплект Cloud",
-    description:
-      "Мягкий комплект из свободного свитшота и прямых брюк для спокойных образов.",
-    shortDescription: "Комплект из плотного трикотажа с расслабленной посадкой.",
-    status: "ACTIVE",
-    composition: "80% хлопок, 20% эластан",
-    certification: "Подходит для ежедневной носки",
-    popularRank: 2,
-    previewRank: 2,
-    category: {
-      id: "category-sets",
-      slug: "sets",
-      name: "Комплекты",
-      description: "Готовые образы на каждый день.",
+  images: {
+    select: {
+      id: true,
+      path: true,
+      alt: true,
+      sortOrder: true,
+      isMain: true,
+      productColorId: true,
     },
-    colors: [
-      {
-        id: "color-oat",
-        slug: "oat",
-        name: "Oat",
-        sortOrder: 1,
-        variants: [
-          {
-            id: "variant-knit-set-s",
-            size: "S",
-            sku: "KNIT-SET-OAT-S",
-            price: 9990,
-            stock: 6,
-            status: "ACTIVE",
-          },
-          {
-            id: "variant-knit-set-m",
-            size: "M",
-            sku: "KNIT-SET-OAT-M",
-            price: 9990,
-            stock: 1,
-            status: "ACTIVE",
-          },
-        ],
-        images: [
-          {
-            id: "image-knit-oat-1",
-            path: "/images/products/knit-set/oat/1.webp",
-            alt: "Трикотажный комплект Cloud",
-            sortOrder: 1,
-            isMain: true,
-            productColorId: "color-oat",
-          },
-        ],
-      },
-    ],
-    images: [
-      {
-        id: "image-knit-main",
-        path: "/images/products/knit-set/oat/1.webp",
-        alt: "Трикотажный комплект Cloud",
-        sortOrder: 1,
-        isMain: true,
-      },
-    ],
+    orderBy: [{ isMain: "desc" }, { sortOrder: "asc" }],
   },
-  {
-    id: "product-shirt",
-    slug: "cotton-shirt",
-    title: "Рубашка Cotton Form",
-    description:
-      "Плотная хлопковая рубашка прямого кроя, которая работает как самостоятельный слой и как overshirt.",
-    shortDescription: "Прямая хлопковая рубашка для многослойных образов.",
-    status: "ACTIVE",
-    composition: "100% хлопок",
-    certification: "Мягкая ткань с предсказуемой посадкой",
-    popularRank: 3,
-    previewRank: 3,
-    category: {
-      id: "category-shirts",
-      slug: "shirts",
-      name: "Рубашки",
-      description: "Базовые вещи с чистым силуэтом.",
+  colors: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      sortOrder: true,
+      images: {
+        select: {
+          id: true,
+          path: true,
+          alt: true,
+          sortOrder: true,
+          isMain: true,
+          productColorId: true,
+        },
+        orderBy: [{ isMain: "desc" }, { sortOrder: "asc" }],
+      },
+      variants: {
+        select: {
+          id: true,
+          size: true,
+          sku: true,
+          price: true,
+          oldPrice: true,
+          stock: true,
+          status: true,
+        },
+        orderBy: [{ status: "asc" }, { size: "asc" }],
+      },
     },
-    colors: [
-      {
-        id: "color-milk",
-        slug: "milk",
-        name: "Milk",
-        sortOrder: 1,
-        variants: [
-          {
-            id: "variant-shirt-s",
-            size: "S",
-            sku: "SHIRT-MILK-S",
-            price: 7490,
-            stock: 3,
-            status: "ACTIVE",
-          },
-          {
-            id: "variant-shirt-m",
-            size: "M",
-            sku: "SHIRT-MILK-M",
-            price: 7490,
-            stock: 0,
-            status: "OUT_OF_STOCK",
-          },
-        ],
-        images: [
-          {
-            id: "image-shirt-milk-1",
-            path: "/images/products/cotton-shirt/milk/1.webp",
-            alt: "Рубашка Cotton Form",
-            sortOrder: 1,
-            isMain: true,
-            productColorId: "color-milk",
-          },
-        ],
-      },
-    ],
-    images: [
-      {
-        id: "image-shirt-main",
-        path: "/images/products/cotton-shirt/milk/1.webp",
-        alt: "Рубашка Cotton Form",
-        sortOrder: 1,
-        isMain: true,
-      },
-    ],
+    orderBy: [{ sortOrder: "asc" }],
   },
-];
+} satisfies Prisma.ProductSelect;
 
-function toProductPreview(product: Product): ProductPreview {
-  const firstVariant = product.colors[0]?.variants[0];
+type DbProduct = Prisma.ProductGetPayload<{
+  select: typeof productSelect;
+}>;
+type DecimalLike = { toString(): string };
+
+function decimalToNumber(value: DecimalLike | null | undefined) {
+  return value ? Number(value) : undefined;
+}
+
+function mapProductImage(image: {
+  id: string;
+  path: string;
+  alt: string;
+  sortOrder: number;
+  isMain: boolean;
+  productColorId: string | null;
+}): ProductImage {
+  return {
+    id: image.id,
+    path: image.path,
+    alt: image.alt,
+    sortOrder: image.sortOrder,
+    isMain: image.isMain,
+    productColorId: image.productColorId ?? undefined,
+  };
+}
+
+function mapProductVariant(variant: {
+  id: string;
+  size: string;
+  sku: string;
+  price: DecimalLike;
+  oldPrice: DecimalLike | null;
+  stock: number;
+  status: ProductVariant["status"];
+}): ProductVariant {
+  return {
+    id: variant.id,
+    size: variant.size,
+    sku: variant.sku,
+    price: Number(variant.price),
+    oldPrice: decimalToNumber(variant.oldPrice),
+    stock: variant.stock,
+    status: variant.status,
+  };
+}
+
+function mapProductColor(color: {
+  id: string;
+  slug: string;
+  name: string;
+  sortOrder: number;
+  images: Array<{
+    id: string;
+    path: string;
+    alt: string;
+    sortOrder: number;
+    isMain: boolean;
+    productColorId: string | null;
+  }>;
+  variants: Array<{
+    id: string;
+    size: string;
+    sku: string;
+    price: DecimalLike;
+    oldPrice: DecimalLike | null;
+    stock: number;
+    status: ProductVariant["status"];
+  }>;
+}): ProductColor {
+  return {
+    id: color.id,
+    slug: color.slug,
+    name: color.name,
+    sortOrder: color.sortOrder,
+    images: color.images.map(mapProductImage),
+    variants: color.variants.map(mapProductVariant),
+  };
+}
+
+function mapProduct(product: DbProduct): Product {
+  return {
+    id: product.id,
+    slug: product.slug,
+    title: product.title,
+    description: product.description,
+    shortDescription: product.shortDescription,
+    status: product.status,
+    composition: product.composition,
+    certification: product.certification,
+    popularRank: product.popularRank,
+    previewRank: product.previewRank,
+    category: {
+      id: product.category.id,
+      slug: product.category.slug,
+      name: product.category.name,
+      description: product.category.description ?? undefined,
+    },
+    images: product.images.map(mapProductImage),
+    colors: product.colors.map(mapProductColor),
+  };
+}
+
+function mapProductPreview(product: Product): ProductPreview {
+  const mainVariant = product.colors.flatMap((color) => color.variants)[0];
   const mainImage =
-    product.images.find((image) => image.isMain)?.path ?? "/images/products/placeholder.webp";
+    product.images.find((image) => image.isMain)?.path ??
+    product.colors.flatMap((color) => color.images).find((image) => image.isMain)?.path ??
+    "/images/products/placeholder.webp";
 
   return {
     id: product.id,
@@ -213,23 +193,53 @@ function toProductPreview(product: Product): ProductPreview {
       slug: product.category.slug,
       name: product.category.name,
     },
-    price: firstVariant?.price ?? 0,
-    oldPrice: firstVariant?.oldPrice,
+    price: mainVariant?.price ?? 0,
+    oldPrice: mainVariant?.oldPrice,
     mainImage,
   };
 }
 
+async function getProductRecord(slug?: string) {
+  return db.product.findFirst({
+    where: {
+      ...(slug ? { slug } : {}),
+      status: "ACTIVE",
+    },
+    select: productSelect,
+  });
+}
+
 export async function getProducts() {
-  return products.map(toProductPreview).sort((left, right) => left.previewRank - right.previewRank);
+  const records = await db.product.findMany({
+    where: {
+      status: "ACTIVE",
+    },
+    orderBy: [{ previewRank: "asc" }, { createdAt: "desc" }],
+    select: productSelect,
+  });
+
+  return records.map((record) => mapProductPreview(mapProduct(record)));
 }
 
 export async function getFeaturedProducts() {
-  return products
-    .map(toProductPreview)
-    .sort((left, right) => left.popularRank - right.popularRank)
-    .slice(0, 3);
+  const records = await db.product.findMany({
+    where: {
+      status: "ACTIVE",
+    },
+    orderBy: [{ popularRank: "asc" }, { previewRank: "asc" }],
+    take: 3,
+    select: productSelect,
+  });
+
+  return records.map((record) => mapProductPreview(mapProduct(record)));
 }
 
 export async function getProductBySlug(slug: string) {
-  return products.find((product) => product.slug === slug) ?? null;
+  const record = await getProductRecord(slug);
+
+  if (!record) {
+    return null;
+  }
+
+  return mapProduct(record);
 }

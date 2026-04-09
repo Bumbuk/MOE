@@ -3,6 +3,8 @@ import { Container } from "@/components/ui/container";
 import { ProductDetails } from "@/components/product/product-details";
 import { getProductBySlug } from "@/lib/products";
 
+export const dynamic = "force-dynamic";
+
 type ProductPageProps = {
   params: Promise<{
     slug: string;
