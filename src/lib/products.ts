@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { DatabaseConnectionError } from "@/types/common";
 import type {
   Product,
   ProductColor,
@@ -7,6 +8,32 @@ import type {
   ProductPreview,
   ProductVariant,
 } from "@/types/product";
+
+function isDatabaseConnectionIssue(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "ECONNREFUSED") {
+    return true;
+  }
+
+  if ("message" in error && typeof error.message === "string") {
+    return error.message.includes("ECONNREFUSED");
+  }
+
+  return false;
+}
+
+function mapDatabaseError(error: unknown): never {
+  if (isDatabaseConnectionIssue(error)) {
+    throw new DatabaseConnectionError(
+      "Не удалось подключиться к PostgreSQL. Проверьте, что база данных запущена и DATABASE_URL указывает на рабочий сервер.",
+    );
+  }
+
+  throw error;
+}
 
 const productSelect = {
   id: true,
@@ -210,32 +237,46 @@ async function getProductRecord(slug?: string) {
 }
 
 export async function getProducts() {
-  const records = await db.product.findMany({
-    where: {
-      status: "ACTIVE",
-    },
-    orderBy: [{ previewRank: "asc" }, { createdAt: "desc" }],
-    select: productSelect,
-  });
+  try {
+    const records = await db.product.findMany({
+      where: {
+        status: "ACTIVE",
+      },
+      orderBy: [{ previewRank: "asc" }, { createdAt: "desc" }],
+      select: productSelect,
+    });
 
-  return records.map((record) => mapProductPreview(mapProduct(record)));
+    return records.map((record) => mapProductPreview(mapProduct(record)));
+  } catch (error) {
+    mapDatabaseError(error);
+  }
 }
 
 export async function getFeaturedProducts() {
-  const records = await db.product.findMany({
-    where: {
-      status: "ACTIVE",
-    },
-    orderBy: [{ popularRank: "asc" }, { previewRank: "asc" }],
-    take: 3,
-    select: productSelect,
-  });
+  try {
+    const records = await db.product.findMany({
+      where: {
+        status: "ACTIVE",
+      },
+      orderBy: [{ popularRank: "asc" }, { previewRank: "asc" }],
+      take: 3,
+      select: productSelect,
+    });
 
-  return records.map((record) => mapProductPreview(mapProduct(record)));
+    return records.map((record) => mapProductPreview(mapProduct(record)));
+  } catch (error) {
+    mapDatabaseError(error);
+  }
 }
 
 export async function getProductBySlug(slug: string) {
-  const record = await getProductRecord(slug);
+  let record: DbProduct | null;
+
+  try {
+    record = await getProductRecord(slug);
+  } catch (error) {
+    mapDatabaseError(error);
+  }
 
   if (!record) {
     return null;
