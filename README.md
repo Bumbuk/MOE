@@ -1,32 +1,56 @@
 # MOE
 
-## Local database
+## Локальная база данных
 
-Standard local PostgreSQL startup:
+Стандартный способ запуска PostgreSQL в репозитории:
 
 ```bash
 docker compose up -d
 ```
 
-Connection string for local development:
+Строка подключения для локальной разработки:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/moe_store?schema=public"
 ```
 
-## Project start from scratch
+## Полный старт с нуля
 
-```bash
+### Windows PowerShell
+
+```powershell
 npm install
 Copy-Item .env.example .env
 docker compose up -d
 npm run prisma:generate
-npm run prisma:migrate
+npm run prisma:migrate -- --name init
 npx prisma db seed
 npm run dev
 ```
 
-## Useful commands
+### macOS / Linux
+
+```bash
+npm install
+cp .env.example .env
+docker compose up -d
+npm run prisma:generate
+npm run prisma:migrate -- --name init
+npx prisma db seed
+npm run dev
+```
+
+## Полезные команды
+
+### Windows PowerShell
+
+```powershell
+docker compose down
+npm run build
+npm run lint
+```
+
+### macOS / Linux
 
 ```bash
 docker compose down

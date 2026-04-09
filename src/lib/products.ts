@@ -14,12 +14,24 @@ function isDatabaseConnectionIssue(error: unknown) {
     return false;
   }
 
-  if ("code" in error && error.code === "ECONNREFUSED") {
+  if ("code" in error && typeof error.code === "string") {
+    if (error.code === "ECONNREFUSED" || error.code === "P1001") {
+      return true;
+    }
+  }
+
+  if ("name" in error && error.name === "PrismaClientInitializationError") {
     return true;
   }
 
   if ("message" in error && typeof error.message === "string") {
-    return error.message.includes("ECONNREFUSED");
+    return (
+      error.message.includes("ECONNREFUSED") ||
+      error.message.includes("P1001") ||
+      error.message.includes("Can't reach database server") ||
+      error.message.includes("Database access denied") ||
+      error.message.includes("connection")
+    );
   }
 
   return false;
