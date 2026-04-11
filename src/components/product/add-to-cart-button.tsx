@@ -5,11 +5,13 @@ import { useCartStore } from "@/store/cart-store";
 
 type AddToCartButtonProps = {
   productId: string;
+  productColorId?: string;
   slug: string;
   title: string;
   colorName: string;
   variantId: string;
   size: string;
+  sku?: string;
   imagePath: string;
   price: number;
 };
@@ -21,13 +23,17 @@ export function AddToCartButton(props: AddToCartButtonProps) {
   function handleAddToCart() {
     addItem({
       productId: props.productId,
+      productColorId: props.productColorId,
       variantId: props.variantId,
       product: {
         productId: props.productId,
+        productColorId: props.productColorId,
+        productVariantId: props.variantId,
         slug: props.slug,
         title: props.title,
         colorName: props.colorName,
         size: props.size,
+        sku: props.sku,
         imagePath: props.imagePath,
         price: props.price,
       },

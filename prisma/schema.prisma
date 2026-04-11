@@ -18,6 +18,13 @@ enum VariantStatus {
   ARCHIVED
 }
 
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
 model Category {
   id          String    @id @default(cuid())
   slug        String    @unique
@@ -91,4 +98,43 @@ model ProductImage {
 
   @@index([productId, sortOrder])
   @@index([productColorId, sortOrder])
+}
+
+model Order {
+  id                  String       @id @default(cuid())
+  orderNumber         String       @unique
+  customerName        String
+  phone               String
+  city                String
+  deliveryMethod      String
+  deliveryAddress     String
+  comment             String?
+  subtotal            Decimal      @db.Decimal(10, 2)
+  deliveryPrice       Decimal      @db.Decimal(10, 2)
+  total               Decimal      @db.Decimal(10, 2)
+  freeDeliveryApplied Boolean      @default(false)
+  status              OrderStatus  @default(NEW)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  items               OrderItem[]
+
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                   String   @id @default(cuid())
+  orderId              String
+  productId            String?
+  productColorId       String?
+  productVariantId     String?
+  productTitleSnapshot String
+  colorNameSnapshot    String?
+  sizeSnapshot         String?
+  skuSnapshot          String?
+  quantity             Int
+  unitPrice            Decimal  @db.Decimal(10, 2)
+  lineTotal            Decimal  @db.Decimal(10, 2)
+  order                Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }

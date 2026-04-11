@@ -6,6 +6,7 @@ import type { CartItem, CartProductSnapshot } from "@/types/cart";
 
 type AddCartItemPayload = {
   productId: string;
+  productColorId?: string;
   variantId: string;
   quantity?: number;
   product: CartProductSnapshot;
@@ -27,7 +28,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
-      addItem: ({ product, productId, quantity = 1, variantId }) =>
+      addItem: ({ product, productId, productColorId, quantity = 1, variantId }) =>
         set((state) => {
           const itemId = buildCartItemId(productId, variantId);
           const existingItem = state.items.find((item) => item.id === itemId);
@@ -49,6 +50,7 @@ export const useCartStore = create<CartState>()(
                 variantId,
                 quantity,
                 product,
+                productColorId,
               },
             ],
           };

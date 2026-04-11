@@ -54,11 +54,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         {currentVariant ? (
           <AddToCartButton
             productId={product.id}
+            productColorId={firstColor?.id}
             slug={product.slug}
             title={product.title}
             colorName={firstColor?.name ?? "Base"}
             variantId={currentVariant.id}
             size={currentVariant.size}
+            sku={currentVariant.sku}
             imagePath={currentImage}
             price={currentVariant.price}
           />

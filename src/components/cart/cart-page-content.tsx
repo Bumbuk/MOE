@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { CheckoutForm } from "@/components/cart/checkout-form";
 import { formatPrice } from "@/lib/format";
@@ -11,6 +12,7 @@ export function CartPageContent() {
   const decreaseItem = useCartStore((state) => state.decreaseItem);
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
+  const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
 
   const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
@@ -20,10 +22,13 @@ export function CartPageContent() {
         <Container className="max-w-3xl">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-10 text-center shadow-sm">
             <p className="text-sm uppercase tracking-[0.24em] text-stone-500">Корзина</p>
-            <h1 className="mt-4 text-4xl font-semibold text-stone-950">Пока пусто</h1>
+            <h1 className="mt-4 text-4xl font-semibold text-stone-950">
+              {completedOrderNumber ? "Заказ оформлен" : "Пока пусто"}
+            </h1>
             <p className="mt-4 text-base leading-7 text-stone-700">
-              Добавьте понравившиеся вещи из каталога, чтобы собрать свою подборку и
-              вернуться к ней в удобный момент.
+              {completedOrderNumber
+                ? `Спасибо за заказ. Мы сохранили вашу заявку под номером #${completedOrderNumber}.`
+                : "Добавьте понравившиеся вещи из каталога, чтобы собрать свою подборку и вернуться к ней в удобный момент."}
             </p>
             <Link
               href="/catalog"
@@ -94,7 +99,7 @@ export function CartPageContent() {
           >
             Очистить корзину
           </button>
-          <CheckoutForm />
+          <CheckoutForm onOrderSuccess={setCompletedOrderNumber} />
         </aside>
       </Container>
     </section>
